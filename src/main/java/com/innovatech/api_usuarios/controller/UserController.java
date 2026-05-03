@@ -31,16 +31,37 @@ public class UserController {
     @PostMapping("/registro")
     public ResponseEntity<?> registrar(@RequestBody UserDTO userDto) {
         try {
-            // Pásale directamente el DTO que recibiste
+            // En esta lógica utilizo el DTO
             return ResponseEntity.status(201).body(userService.registrarUsuario(userDto));
         } catch (Exception e) {
             e.printStackTrace();
             return ResponseEntity.status(400).body("Error: " + e.getMessage());
         }
     }
-
+    // Listar usuarios
     @GetMapping
     public ResponseEntity<List<User>> obtenerUsuarios() {
         return ResponseEntity.ok(userService.listarTodos());
+    }
+
+    // Modificar usuario
+    @PutMapping("/{id}")
+    public ResponseEntity<?> actualizar(@PathVariable Long id, @RequestBody UserDTO userDto) {
+        try {
+            return ResponseEntity.ok(userService.actualizarUsuario(id, userDto));
+        } catch (Exception e) {
+            return ResponseEntity.status(404).body(e.getMessage());
+        }
+    }
+
+    // Eliminar usuario
+    @DeleteMapping("/{id}")
+    public ResponseEntity<?> eliminar(@PathVariable Long id) {
+        try {
+            userService.eliminarUsuario(id);
+            return ResponseEntity.ok("Usuario eliminado correctamente");
+        } catch (Exception e) {
+            return ResponseEntity.status(404).body(e.getMessage());
+        }
     }
 }

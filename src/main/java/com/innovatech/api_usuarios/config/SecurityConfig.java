@@ -29,14 +29,30 @@ public class SecurityConfig {
         http
                 .csrf(csrf -> csrf.disable())
                 .cors(cors -> cors.disable())
+                // DESACTIVAR LOGIN POR DEFECTO (Esto quita el cuadro de login basic del swagger)
+                .httpBasic(basic -> basic.disable())
+                .formLogin(form -> form.disable())
                 .authorizeHttpRequests(auth -> auth
+                        .requestMatchers(
+                                "/v3/api-docs/**",
+                                "/v3/api-docs.yaml",
+                                "/swagger-ui/**",
+                                "/swagger-ui.html",
+                                "/swagger-resources/**",
+                                "/webjars/**",
+                                "/favicon.ico" // A veces el bloqueo del icono causa el 401
+                        ).permitAll()
+                        // 1. Lo que es público
                         .requestMatchers("/usuarios/registro", "/usuarios/login").permitAll()
+                        // 2. Lo que requiere TOKEN (Ponlo antes de anyRequest)
+                        .requestMatchers("/roles/**").permitAll()
+                        .requestMatchers("/usuarios/**").authenticated()
+                        // 3. El resto
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
-                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)); // Muy importante para JWT
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
 
         return http.build();
     }
-
 }

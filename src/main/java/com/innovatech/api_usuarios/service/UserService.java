@@ -93,4 +93,37 @@ public class UserService implements UserDetailsService {
     public List<User> listarTodos() {
         return userRepository.findAll();
     }
+
+
+    public User actualizarUsuario(Long id, UserDTO userDto) {
+        return userRepository.findById(id).map(user -> {
+            user.setUsername(userDto.getUsername());
+            user.setEmail(userDto.getEmail());
+
+            // Solo actualizamos la contraseña si viene en el DTO
+            if (userDto.getPassword() != null && !userDto.getPassword().isEmpty()) {
+                user.setPassword(passwordEncoder.encode(userDto.getPassword()));
+            }
+
+            // Actualización de roles (opcional, dependiendo de tu lógica)
+            if (userDto.getRoles() != null) {
+                Set<Role> roles = new HashSet<>();
+                for (String roleName : userDto.getRoles()) {
+                    Role role = roleRepository.findByName(roleName)
+                            .orElseThrow(() -> new RuntimeException("Role no encontrado: " + roleName));
+                    roles.add(role);
+                }
+                user.setRoles(roles);
+            }
+
+            return userRepository.save(user);
+        }).orElseThrow(() -> new RuntimeException("Usuario no encontrado con ID: " + id));
+    }
+
+    public void eliminarUsuario(Long id) {
+        if (!userRepository.existsById(id)) {
+            throw new RuntimeException("No se puede eliminar: Usuario no encontrado con ID: " + id);
+        }
+        userRepository.deleteById(id);
+    }
 }

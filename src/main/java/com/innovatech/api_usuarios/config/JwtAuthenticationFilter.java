@@ -31,6 +31,16 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request,
                                     HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
+        String authHeader = request.getHeader("Authorization");
+        String path = request.getRequestURI();
+
+        System.out.println("DEBUG - Procesando petición a: " + path); // Esto DEBE salir siempre
+
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            System.out.println("DEBUG - No hay Bearer token para: " + path);
+            filterChain.doFilter(request, response);
+            return;
+        }
         try {
             String jwt = getJwtFromRequest(request);
 
@@ -49,6 +59,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
 
                 // Aquí es donde "desbloqueas" el acceso para el resto de la petición
+                System.out.println("✅ Usuario autenticado: " + username + " con roles: " + authorities);
                 SecurityContextHolder.getContext().setAuthentication(authentication);
             }
         } catch (Exception ex) {
@@ -60,13 +71,22 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) throws ServletException {
-        String path = request.getRequestURI(); // Usa getRequestURI en lugar de getServletPath
-        boolean isAuthPath = path.contains("/usuarios/login") || path.contains("/usuarios/registro");
+        String path = request.getRequestURI();
 
-        // Log más detallado para ver qué está comparando
-        System.out.println("DEBUG - URI: " + path + " | ¿Ignorar?: " + isAuthPath);
+        // Definimos qué rutas son públicas (Login, Registro y Swagger)
+        boolean isAuthPath = path.endsWith("/login") ||
+                path.endsWith("/registro");
 
-        return isAuthPath;
+        boolean isSwaggerPath = path.contains("/v3/api-docs") ||
+                path.contains("/swagger-ui") ||
+                path.contains("/swagger-resources") ||
+                path.equals("/swagger-ui.html");
+
+        boolean skipFilter = isAuthPath || isSwaggerPath;
+
+        System.out.println("DEBUG - Intentando entrar a: " + path + " | ¿Es ruta pública?: " + skipFilter);
+
+        return skipFilter;
     }
 
     private String getJwtFromRequest(HttpServletRequest request) {

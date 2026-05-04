@@ -44,6 +44,18 @@ public class UserController {
         return ResponseEntity.ok(userService.listarTodos());
     }
 
+    @GetMapping("/{id}")
+    public ResponseEntity<?> obtenerPorId(@PathVariable Long id) {
+        try {
+            // El servicio debe retornar el User o el UserDTO
+            User user = userService.buscarPorId(id);
+            return ResponseEntity.ok(user);
+        } catch (Exception e) {
+            // Si el usuario 11 no existe, esto ayuda a que Feign no lance un 500
+            return ResponseEntity.status(404).body("Usuario no encontrado: " + e.getMessage());
+        }
+    }
+
     // Modificar usuario
     @PutMapping("/{id}")
     public ResponseEntity<?> actualizar(@PathVariable Long id, @RequestBody UserDTO userDto) {

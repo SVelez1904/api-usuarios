@@ -18,10 +18,8 @@ public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
-    // DEJA SOLO ESTE CONSTRUCTOR
     public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter) {
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
-        System.out.println("⚠️ CARGANDO CONFIGURACIÓN DE SEGURIDAD EN USUARIOS CON JWT FILTER");
     }
 
     @Bean
@@ -29,25 +27,30 @@ public class SecurityConfig {
         http
                 .csrf(csrf -> csrf.disable())
                 .cors(cors -> cors.disable())
-                // DESACTIVAR LOGIN POR DEFECTO (Esto quita el cuadro de login basic del swagger)
                 .httpBasic(basic -> basic.disable())
                 .formLogin(form -> form.disable())
                 .authorizeHttpRequests(auth -> auth
+                        // 1. Recursos de Swagger y documentación siempre públicos
                         .requestMatchers(
                                 "/v3/api-docs/**",
                                 "/v3/api-docs.yaml",
                                 "/swagger-ui/**",
                                 "/swagger-ui.html",
                                 "/swagger-resources/**",
-                                "/webjars/**",
-                                "/favicon.ico" // A veces el bloqueo del icono causa el 401
+                                "/webjars/**"
                         ).permitAll()
-                        // 1. Lo que es público
+
+                        // 2. Auth y Registro públicos
                         .requestMatchers("/usuarios/registro", "/usuarios/login").permitAll()
-                        // 2. Lo que requiere TOKEN (Ponlo antes de anyRequest)
+
+                        // 3. REGLA CRÍTICA: Permitir el GET de un usuario por ID
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/usuarios/{id}").authenticated()
+                        // 4. Roles (si quieres que sean públicos para pruebas, si no, usa .authenticated())
                         .requestMatchers("/roles/**").permitAll()
+
+                        // 5. Cualquier otra ruta de usuarios requiere estar autenticado
                         .requestMatchers("/usuarios/**").authenticated()
-                        // 3. El resto
+
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)

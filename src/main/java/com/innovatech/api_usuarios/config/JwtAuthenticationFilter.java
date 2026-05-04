@@ -34,36 +34,44 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         String authHeader = request.getHeader("Authorization");
         String path = request.getRequestURI();
 
-        System.out.println("DEBUG - Procesando petición a: " + path); // Esto DEBE salir siempre
-
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            System.out.println("DEBUG - No hay Bearer token para: " + path);
             filterChain.doFilter(request, response);
             return;
         }
+
         try {
             String jwt = getJwtFromRequest(request);
 
             if (StringUtils.hasText(jwt) && tokenProvider.validarToken(jwt)) {
                 String username = tokenProvider.obtenerUsernameDeJwt(jwt);
-                String roles = tokenProvider.obtenerRolesDeJwt(jwt);
+                String rolesString = tokenProvider.obtenerRolesDeJwt(jwt);
 
-                // Convertimos la cadena de roles (ej: "ROLE_USER,ROLE_ADMIN") en autoridades de Spring
-                List<SimpleGrantedAuthority> authorities = Arrays.stream(roles.split(","))
-                        .map(SimpleGrantedAuthority::new)
-                        .collect(Collectors.toList());
+                // LOG CRÍTICO: Si esto sale vacío o nulo en el log de Docker, ahí está el 403
+                System.out.println("DEBUG - Roles extraídos del JWT: [" + rolesString + "]");
 
-                UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
-                        username, null, authorities);
+                if (rolesString != null && !rolesString.isEmpty()) {
+                    // Limpiamos espacios por si el string viene como "ROLE_ADMIN, ROLE_USER"
+                    List<SimpleGrantedAuthority> authorities = Arrays.stream(rolesString.split(","))
+                            .map(String::trim)
+                            .filter(role -> !role.isEmpty())
+                            .map(SimpleGrantedAuthority::new)
+                            .collect(Collectors.toList());
 
-                authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                    UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
+                            username, null, authorities);
 
-                // Aquí es donde "desbloqueas" el acceso para el resto de la petición
-                System.out.println("✅ Usuario autenticado: " + username + " con roles: " + authorities);
-                SecurityContextHolder.getContext().setAuthentication(authentication);
+                    authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+
+                    SecurityContextHolder.getContext().setAuthentication(authentication);
+                    System.out.println("✅ Autenticación exitosa para: " + username + " | Autoridades: " + authorities);
+                } else {
+                    System.err.println("❌ ERROR: El token es válido pero NO contiene roles.");
+                }
+            } else {
+                System.err.println("❌ ERROR: Token inválido o expirado para la ruta: " + path);
             }
         } catch (Exception ex) {
-            logger.error("No se pudo establecer la autenticación de usuario", ex);
+            System.err.println("❌ ERROR: Falló el proceso de autenticación: " + ex.getMessage());
         }
 
         filterChain.doFilter(request, response);

@@ -94,6 +94,11 @@ public class UserService implements UserDetailsService {
         return userRepository.findAll();
     }
 
+    // Metodo para buscar un usuario específico por su ID
+    public User buscarPorId(Long id) {
+        return userRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuario no encontrado con ID: " + id));
+    }
 
     public User actualizarUsuario(Long id, UserDTO userDto) {
         return userRepository.findById(id).map(user -> {

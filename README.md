@@ -7,14 +7,14 @@ Este microservicio es el núcleo de seguridad y gestión de identidad de **Innov
 
 ---
 
-## 🚀 Funcionalidades Principales
+## Funcionalidades Principales
 
 *   **Gestión de Usuarios:** Registro, actualización y consulta de perfiles de usuario.
 *   **Autenticación y Autorización:** Implementación de seguridad para el acceso al sistema.
 *   **Generación de JWT:** Emisión de **JSON Web Tokens** firmados para permitir la comunicación segura entre microservicios a través del API Gateway.
 *   **Persistencia de Datos:** Manejo de información sensible utilizando estándares de encriptación para contraseñas.
 
-## 🛠️ Stack Tecnológico
+##  Stack Tecnológico
 
 *   **Lenguaje:** Java 17+
 *   **Framework:** Spring Boot 3

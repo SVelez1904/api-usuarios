@@ -45,7 +45,7 @@ public class SecurityConfig {
 
                         // 3. REGLA CRÍTICA: Permitir el GET de un usuario por ID
                         .requestMatchers(org.springframework.http.HttpMethod.GET, "/usuarios/{id}").authenticated()
-                        // 4. Roles (si quieres que sean públicos para pruebas, si no, usa .authenticated())
+                        // 4. Roles
                         .requestMatchers("/roles/**").permitAll()
 
                         // 5. Cualquier otra ruta de usuarios requiere estar autenticado

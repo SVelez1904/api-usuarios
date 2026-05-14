@@ -1,19 +1,27 @@
 package com.innovatech.api_usuarios.controller;
 
-import com.innovatech.api_usuarios.dto.UserDTO;
-import com.innovatech.api_usuarios.model.User;
-import com.innovatech.api_usuarios.dto.LoginRequest;
-import com.innovatech.api_usuarios.dto.LoginResponse;
-import com.innovatech.api_usuarios.service.UserService;
-import jakarta.validation.Valid; // Importante para las validaciones
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
-
 import java.util.List;
 
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping; // Importante para las validaciones
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.innovatech.api_usuarios.dto.LoginRequest;
+import com.innovatech.api_usuarios.dto.LoginResponse;
+import com.innovatech.api_usuarios.dto.UserDTO;
+import com.innovatech.api_usuarios.model.User;
+import com.innovatech.api_usuarios.service.UserService;
+
+import jakarta.validation.Valid;
+
 @RestController
-@RequestMapping("/usuarios")
-@CrossOrigin(origins = "*") // Permite peticiones de otros orígenes (Postman/Gateway)
+@RequestMapping("/usuarios") // Permite peticiones de otros orígenes (Postman/Gateway)
 public class UserController {
 
     private final UserService userService;

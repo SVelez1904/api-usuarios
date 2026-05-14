@@ -1,22 +1,23 @@
 package com.innovatech.api_usuarios.config;
 
+import java.io.IOException;
+import java.util.Arrays;
+import java.util.List;
+import java.util.stream.Collectors;
+
 import org.springframework.context.annotation.Lazy;
-import jakarta.servlet.FilterChain;
-import jakarta.servlet.ServletException;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 
-import java.io.IOException;
-import java.util.Arrays;
-import java.util.List;
-import java.util.stream.Collectors;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
@@ -28,17 +29,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     }
 
     @Override
-    protected void doFilterInternal(HttpServletRequest request,
-                                    HttpServletResponse response,
-                                    FilterChain filterChain) throws ServletException, IOException {
-        String authHeader = request.getHeader("Authorization");
-        String path = request.getRequestURI();
-
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            filterChain.doFilter(request, response);
-            return;
-        }
-
+    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) 
+            throws ServletException, IOException {
+        
         try {
             String jwt = getJwtFromRequest(request);
 
@@ -46,11 +39,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 String username = tokenProvider.obtenerUsernameDeJwt(jwt);
                 String rolesString = tokenProvider.obtenerRolesDeJwt(jwt);
 
-                // LOG CRÍTICO: Si esto sale vacío o nulo en el log de Docker, ahí está el 403
-                System.out.println("DEBUG - Roles extraídos del JWT: [" + rolesString + "]");
-
-                if (rolesString != null && !rolesString.isEmpty()) {
-                    // Limpiamos espacios por si el string viene como "ROLE_ADMIN, ROLE_USER"
+                if (StringUtils.hasText(rolesString)) {
                     List<SimpleGrantedAuthority> authorities = Arrays.stream(rolesString.split(","))
                             .map(String::trim)
                             .filter(role -> !role.isEmpty())
@@ -63,39 +52,43 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
 
                     SecurityContextHolder.getContext().setAuthentication(authentication);
-                    System.out.println("✅ Autenticación exitosa para: " + username + " | Autoridades: " + authorities);
-                } else {
-                    System.err.println("❌ ERROR: El token es válido pero NO contiene roles.");
+                    System.out.println("✅ JWT procesado: " + username + " con roles: " + authorities);
                 }
-            } else {
-                System.err.println("❌ ERROR: Token inválido o expirado para la ruta: " + path);
             }
         } catch (Exception ex) {
-            System.err.println("❌ ERROR: Falló el proceso de autenticación: " + ex.getMessage());
+            // No bloqueamos la petición aquí, dejamos que SecurityContext decida si era necesaria la auth
+            System.err.println("❌ Error procesando JWT: " + ex.getMessage());
         }
 
         filterChain.doFilter(request, response);
     }
 
     @Override
-    protected boolean shouldNotFilter(HttpServletRequest request) throws ServletException {
-        String path = request.getRequestURI();
+protected boolean shouldNotFilter(HttpServletRequest request) throws ServletException {
+    String path = request.getRequestURI();
+    String method = request.getMethod();
 
-        // Definimos qué rutas son públicas (Login, Registro y Swagger)
-        boolean isAuthPath = path.endsWith("/login") ||
-                path.endsWith("/registro");
-
-        boolean isSwaggerPath = path.contains("/v3/api-docs") ||
-                path.contains("/swagger-ui") ||
-                path.contains("/swagger-resources") ||
-                path.equals("/swagger-ui.html");
-
-        boolean skipFilter = isAuthPath || isSwaggerPath;
-
-        System.out.println("DEBUG - Intentando entrar a: " + path + " | ¿Es ruta pública?: " + skipFilter);
-
-        return skipFilter;
+    // 1. Omitir siempre OPTIONS (CORS)
+    if ("OPTIONS".equalsIgnoreCase(method)) {
+        return true;
     }
+
+    // 2. Definir rutas públicas de forma flexible
+    // Usamos .contains() sin el prefijo inicial para que no importe si llega 
+    // como "/usuarios/login", "/api/usuarios/login" o simplemente "/login"
+    boolean isPublicPath = path.contains("/login") || 
+                           path.contains("/registro") ||
+                           path.contains("/v3/api-docs") ||
+                           path.contains("/swagger-ui") ||
+                           path.contains("/swagger-resources") ||
+                           path.contains("/webjars");
+
+    // LOG CRÍTICO: Mira esto en tu consola de Docker. 
+    // Si ves que path es "/login" pero isPublicPath es false, ahí está el error.
+    System.out.println("DEBUG - Filtro JWT en: " + path + " | ¿Omitir?: " + isPublicPath);
+    
+    return isPublicPath;
+}
 
     private String getJwtFromRequest(HttpServletRequest request) {
         String bearerToken = request.getHeader("Authorization");

@@ -5,7 +5,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import org.springframework.context.annotation.Lazy;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -22,79 +21,42 @@ import jakarta.servlet.http.HttpServletResponse;
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
-    private final JwtTokenProvider tokenProvider;
-
-    public JwtAuthenticationFilter(@Lazy JwtTokenProvider tokenProvider) {
-        this.tokenProvider = tokenProvider;
-    }
-
     @Override
-    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) 
+    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
-        
-        try {
-            String jwt = getJwtFromRequest(request);
 
-            if (StringUtils.hasText(jwt) && tokenProvider.validarToken(jwt)) {
-                String username = tokenProvider.obtenerUsernameDeJwt(jwt);
-                String rolesString = tokenProvider.obtenerRolesDeJwt(jwt);
+        // 1. Leer las cabeceras de confianza que envió el Gateway
+        String username = request.getHeader("X-User-Username");
+        String rolesString = request.getHeader("X-User-Roles");
 
-                if (StringUtils.hasText(rolesString)) {
-                    List<SimpleGrantedAuthority> authorities = Arrays.stream(rolesString.split(","))
-                            .map(String::trim)
-                            .filter(role -> !role.isEmpty())
-                            .map(SimpleGrantedAuthority::new)
-                            .collect(Collectors.toList());
+        // 2. Si el Gateway nos envió un usuario, lo metemos al contexto de Spring
+        if (StringUtils.hasText(username)) {
+            List<SimpleGrantedAuthority> authorities = List.of();
 
-                    UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
-                            username, null, authorities);
-
-                    authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-
-                    SecurityContextHolder.getContext().setAuthentication(authentication);
-                    System.out.println("✅ JWT procesado: " + username + " con roles: " + authorities);
-                }
+            if (StringUtils.hasText(rolesString)) {
+                authorities = Arrays.stream(rolesString.split(","))
+                        .map(String::trim)
+                        .filter(role -> !role.isEmpty())
+                        .map(SimpleGrantedAuthority::new)
+                        .collect(Collectors.toList());
             }
-        } catch (Exception ex) {
-            // No bloqueamos la petición aquí, dejamos que SecurityContext decida si era necesaria la auth
-            System.err.println("❌ Error procesando JWT: " + ex.getMessage());
+
+            UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
+                    username, null, authorities);
+
+            authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+            SecurityContextHolder.getContext().setAuthentication(authentication);
+
+            System.out.println("Microservicio 🔐 - Autenticado vía Gateway: " + username + " con roles: " + authorities);
         }
 
         filterChain.doFilter(request, response);
     }
 
     @Override
-protected boolean shouldNotFilter(HttpServletRequest request) throws ServletException {
-    String path = request.getRequestURI();
-    String method = request.getMethod();
-
-    // 1. Omitir siempre OPTIONS (CORS)
-    if ("OPTIONS".equalsIgnoreCase(method)) {
-        return true;
-    }
-
-    // 2. Definir rutas públicas de forma flexible
-    // Usamos .contains() sin el prefijo inicial para que no importe si llega 
-    // como "/usuarios/login", "/api/usuarios/login" o simplemente "/login"
-    boolean isPublicPath = path.contains("/login") || 
-                           path.contains("/registro") ||
-                           path.contains("/v3/api-docs") ||
-                           path.contains("/swagger-ui") ||
-                           path.contains("/swagger-resources") ||
-                           path.contains("/webjars");
-
-    // LOG CRÍTICO: Mira esto en tu consola de Docker. 
-    // Si ves que path es "/login" pero isPublicPath es false, ahí está el error.
-    System.out.println("DEBUG - Filtro JWT en: " + path + " | ¿Omitir?: " + isPublicPath);
-    
-    return isPublicPath;
-}
-
-    private String getJwtFromRequest(HttpServletRequest request) {
-        String bearerToken = request.getHeader("Authorization");
-        if (StringUtils.hasText(bearerToken) && bearerToken.startsWith("Bearer ")) {
-            return bearerToken.substring(7);
-        }
-        return null;
+    protected boolean shouldNotFilter(HttpServletRequest request) throws ServletException {
+        // En este enfoque, el filtro NO debe apagarse nunca para las rutas protegidas.
+        // Como el login y registro no traen las cabeceras X-User, este filtro simplemente las dejará pasar limpias.
+        return false;
     }
 }

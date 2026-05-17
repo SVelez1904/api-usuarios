@@ -84,4 +84,9 @@ public class UserController {
             return ResponseEntity.status(404).body(e.getMessage());
         }
     }
+
+    @GetMapping("/count")
+    public ResponseEntity<Long> getCountTotalUsuarios() {
+        return ResponseEntity.ok(userService.contarTotalUsuarios());
+    }
 }

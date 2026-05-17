@@ -131,4 +131,9 @@ public class UserService implements UserDetailsService {
         }
         userRepository.deleteById(id);
     }
+
+    //  método para contar usuarios
+    public Long contarTotalUsuarios() {
+        return userRepository.count(); // Aquí userRepository sí está inyectado
+    }
 }

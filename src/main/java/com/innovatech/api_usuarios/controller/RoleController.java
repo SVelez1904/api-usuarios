@@ -17,6 +17,7 @@ public class RoleController {
         this.roleService = roleService;
     }
 
+    // Se utilizan los prnt en consola para facilitar debugging
     @GetMapping
     public ResponseEntity<List<Role>> obtenerRoles() {
         System.out.println("--> ¡ENTRÉ AL CONTROLADOR DE ROLES!");

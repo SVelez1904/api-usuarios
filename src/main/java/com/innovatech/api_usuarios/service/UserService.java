@@ -110,7 +110,7 @@ public class UserService implements UserDetailsService {
                 user.setPassword(passwordEncoder.encode(userDto.getPassword()));
             }
 
-            // Actualización de roles (opcional, dependiendo de tu lógica)
+            // Actualización de roles
             if (userDto.getRoles() != null) {
                 Set<Role> roles = new HashSet<>();
                 for (String roleName : userDto.getRoles()) {

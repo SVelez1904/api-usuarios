@@ -13,7 +13,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 
 @Configuration
 @EnableWebSecurity
-@EnableMethodSecurity // 👈 CRÍTICO: Permite usar @PreAuthorize("hasRole('ADMIN')") en tus controladores
+@EnableMethodSecurity
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
@@ -26,10 +26,10 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
                 .csrf(csrf -> csrf.disable())
-                .cors(cors -> cors.disable()) // Correcto, el API Gateway maneja el CORS global
+                .cors(cors -> cors.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        // 1. Rutas públicas explícitas (con y sin el prefijo /api que usa tu entorno)
+                        // 1. Rutas públicas explícitas
                         .requestMatchers(
                                 "/login", "/registro",
                                 "/usuarios/login", "/usuarios/registro",
@@ -44,10 +44,10 @@ public class SecurityConfig {
                                 "/webjars/**"
                         ).permitAll()
 
-                        // 3. Cualquier otra petición (como tu GET /api/usuarios) EXIGE autenticación
+                        // 3. Cualquier otra petición (como GET /api/usuarios) EXIGE autenticación
                         .anyRequest().authenticated()
                 )
-                // Inyectamos tu filtro JWT antes del filtro de autenticación nativo de Spring
+                // Inyectamos el filtro JWT antes del filtro de autenticación nativo de Spring
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();

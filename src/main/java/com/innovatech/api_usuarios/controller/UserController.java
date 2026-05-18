@@ -21,7 +21,7 @@ import com.innovatech.api_usuarios.service.UserService;
 import jakarta.validation.Valid;
 
 @RestController
-@RequestMapping("/usuarios") // Permite peticiones de otros orígenes (Postman/Gateway)
+@RequestMapping("/usuarios")
 public class UserController {
 
     private final UserService userService;
@@ -59,7 +59,7 @@ public class UserController {
             User user = userService.buscarPorId(id);
             return ResponseEntity.ok(user);
         } catch (Exception e) {
-            // Si el usuario 11 no existe, esto ayuda a que Feign no lance un 500
+            // Si el usuario  no existe, esto ayuda a que Feign no lance un 500
             return ResponseEntity.status(404).body("Usuario no encontrado: " + e.getMessage());
         }
     }

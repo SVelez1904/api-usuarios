@@ -17,7 +17,7 @@ public class JwtTokenProvider {
 
     private final Key key = Keys.hmacShaKeyFor(JWT_SECRET.getBytes());
 
-    // Cambiamos String username por Authentication para capturar los roles
+
     public String generarToken(Authentication authentication) {
         String username = authentication.getName();
         Date ahora = new Date();

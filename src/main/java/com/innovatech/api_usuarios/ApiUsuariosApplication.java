@@ -19,7 +19,7 @@ public class ApiUsuariosApplication {
 	@Bean
 	CommandLineRunner init(RoleRepository roleRepository) {
 		return args -> {
-			// Verificamos si los roles ya existen para no duplicarlos cada vez que reinicies Docker
+			// Verificamos si los roles ya existen para no duplicarlos cada vez que se reinicia Docker
 			crearRolSiNoExiste(roleRepository, "ROLE_LEADER");
 			crearRolSiNoExiste(roleRepository, "ROLE_DEVELOPER");
 			crearRolSiNoExiste(roleRepository, "ROLE_ADMIN");

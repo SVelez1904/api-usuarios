@@ -1,5 +1,7 @@
 package com.innovatech.api_usuarios.service;
 
+import jakarta.transaction.Transactional;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -32,26 +34,29 @@ public class UserService implements UserDetailsService {
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
     private final AuthenticationManager authenticationManager;
+    private final KafkaTemplate<String, String> kafkaTemplate;
 
+    // Constructor completo con inyecciones
     public UserService(UserRepository userRepository,
                        RoleRepository roleRepository,
                        PasswordEncoder passwordEncoder,
                        JwtTokenProvider jwtTokenProvider,
-                       @org.springframework.context.annotation.Lazy AuthenticationManager authenticationManager) { // Agrega @Lazy aquí
+                       @org.springframework.context.annotation.Lazy AuthenticationManager authenticationManager,
+                       KafkaTemplate<String, String> kafkaTemplate) { // 👈 LE QUITAMOS EL @Lazy AQUÍ
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtTokenProvider = jwtTokenProvider;
         this.authenticationManager = authenticationManager;
+        this.kafkaTemplate = kafkaTemplate; // Ahora inyecta la instancia real directo al arrancar
     }
+
     public String autenticar(LoginRequest request) {
         try {
             Authentication authentication = authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(request.getUsername(), request.getPassword())
             );
-
             return jwtTokenProvider.generarToken(authentication);
-
         } catch (Exception e) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Credenciales inválidas");
         }
@@ -61,10 +66,7 @@ public class UserService implements UserDetailsService {
         User user = new User();
         user.setUsername(userDto.getUsername());
         user.setEmail(userDto.getEmail());
-
-
         user.setPassword(passwordEncoder.encode(userDto.getPassword()));
-
 
         Set<Role> roles = new HashSet<>();
         for (String roleName : userDto.getRoles()) {
@@ -77,10 +79,11 @@ public class UserService implements UserDetailsService {
         return userRepository.save(user);
     }
 
+    // 🔥 EL MÉTODO QUE REQUERÍA LA INTERFAZ (Ya no dará error)
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-        User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new UsernameNotFoundException("Usuario no encontrado"));
+        com.innovatech.api_usuarios.model.User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new UsernameNotFoundException("Usuario no encontrado: " + username));
 
         return org.springframework.security.core.userdetails.User
                 .withUsername(user.getUsername())
@@ -90,11 +93,11 @@ public class UserService implements UserDetailsService {
                         .collect(Collectors.toList()))
                 .build();
     }
+
     public List<User> listarTodos() {
         return userRepository.findAll();
     }
 
-    // Metodo para buscar un usuario específico por su ID
     public User buscarPorId(Long id) {
         return userRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuario no encontrado con ID: " + id));
@@ -105,12 +108,10 @@ public class UserService implements UserDetailsService {
             user.setUsername(userDto.getUsername());
             user.setEmail(userDto.getEmail());
 
-            // Solo actualizamos la contraseña si viene en el DTO
             if (userDto.getPassword() != null && !userDto.getPassword().isEmpty()) {
                 user.setPassword(passwordEncoder.encode(userDto.getPassword()));
             }
 
-            // Actualización de roles
             if (userDto.getRoles() != null) {
                 Set<Role> roles = new HashSet<>();
                 for (String roleName : userDto.getRoles()) {
@@ -125,15 +126,35 @@ public class UserService implements UserDetailsService {
         }).orElseThrow(() -> new RuntimeException("Usuario no encontrado con ID: " + id));
     }
 
+    // Método de eliminación sincronizado con Kafka
+    // Reemplaza tu método eliminarUsuario en UserService.java por este:
     public void eliminarUsuario(Long id) {
-        if (!userRepository.existsById(id)) {
-            throw new RuntimeException("No se puede eliminar: Usuario no encontrado con ID: " + id);
+        // 1. Borramos de la DB usando un método puramente transaccional
+        ejecutarBorradoEnBaseDatos(id);
+
+        // 2. FUERA de la transacción de la DB, enviamos el mensaje a Kafka de forma síncrona
+        System.out.println("🚀 [FUERA DE TX] Forzando envío síncrono a Kafka para ID: " + id);
+        try {
+            this.kafkaTemplate.send("usuarios-events", String.valueOf(id)).get();
+            System.out.println("✅ [FUERA DE TX] CONFIRMADO: Kafka recibió el ID " + id);
+        } catch (Exception e) {
+            System.err.println("🚨 ERROR EN KAFKA: " + e.getMessage());
         }
-        userRepository.deleteById(id);
     }
 
-    //  método para contar usuarios
+    @org.springframework.transaction.annotation.Transactional
+    public void ejecutarBorradoEnBaseDatos(Long id) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
+                        org.springframework.http.HttpStatus.NOT_FOUND, "Usuario no encontrado"));
+
+        user.getRoles().clear();
+        userRepository.saveAndFlush(user);
+        userRepository.delete(user);
+        userRepository.flush();
+        System.out.println("💾 DB: Usuario " + id + " borrado físicamente de Postgres.");
+    }
     public Long contarTotalUsuarios() {
-        return userRepository.count(); // Aquí userRepository sí está inyectado
+        return userRepository.count();
     }
 }

@@ -78,8 +78,9 @@ public class UserController {
     @DeleteMapping("/{id}")
     public ResponseEntity<?> eliminar(@PathVariable Long id) {
         try {
+            // Al ejecutar este método, se borra de Postgres y se gatilla el mensaje a Kafka
             userService.eliminarUsuario(id);
-            return ResponseEntity.ok("Usuario eliminado correctamente");
+            return ResponseEntity.ok("Usuario eliminado correctamente y sincronizado en el ecosistema.");
         } catch (Exception e) {
             return ResponseEntity.status(404).body(e.getMessage());
         }

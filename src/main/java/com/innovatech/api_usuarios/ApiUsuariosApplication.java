@@ -7,6 +7,7 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
+import org.springframework.context.annotation.Profile;
 
 @SpringBootApplication
 @ComponentScan(basePackages = "com.innovatech.api_usuarios")
@@ -17,6 +18,7 @@ public class ApiUsuariosApplication {
 	}
 
 	@Bean
+	@Profile("!test")
 	CommandLineRunner init(RoleRepository roleRepository) {
 		return args -> {
 			// Verificamos si los roles ya existen para no duplicarlos cada vez que se reinicia Docker
